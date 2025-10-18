@@ -7,6 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="HRPlatform.Tests\**" />
+    <Content Remove="HRPlatform.Tests\**" />
+    <EmbeddedResource Remove="HRPlatform.Tests\**" />
+    <None Remove="HRPlatform.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="8.7.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -14,6 +22,7 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="xunit.abstractions" Version="2.0.3" />
   </ItemGroup>
 
 </Project>
