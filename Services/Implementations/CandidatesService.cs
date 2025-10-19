@@ -97,11 +97,8 @@ namespace HRPlatform.Services.Implementations {
                     c.Email,
                     c.Phone,
                     c.CandidateSkills
-                        .Select(cs => new SkillDto(
-                            cs.Skill.Id,
-                            cs.Skill.Name
-                        ))
-                        .OrderBy(s => s.Name)
+                        .OrderBy(cs => cs.Skill.Name)
+                        .Select(cs => new SkillDto(cs.SkillId, cs.Skill.Name))
                         .ToList()
                 ))
                 .FirstOrDefaultAsync();
