@@ -246,6 +246,45 @@ namespace HRPlatform.Tests {
             var act = async () => await sut.RemoveSkillAsync(created.Id, csharpId);
             await act.Should().ThrowAsync<NotFoundException>();
         }
+        [Fact]
+        public async Task GetAsync_filters_by_name_case_insensitive() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new CandidatesService(db);
+
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Ana Petrović",
+                DateOfBirth = new DateOnly(1998, 5, 14),
+                Phone = "+38160000001",
+                Email = "ana@example.com"
+            });
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Marko Marković",
+                DateOfBirth = new DateOnly(1995, 11, 2),
+                Phone = "+38160000002",
+                Email = "marko@example.com"
+            });
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Anastasija Jovanović",
+                DateOfBirth = new DateOnly(1997, 3, 7),
+                Phone = "+38160000003",
+                Email = "anastasija@example.com"
+            });
+
+            // ACT
+            var page = await sut.GetAsync(
+                name: "ANA",              // mixed case
+                skillIds: null,
+                match: "any",
+                page: 1, pageSize: 10,
+                sortBy: "name", dir: "asc");
+
+            // ASSERT
+            var names = page.Items.Select(c => c.FullName).ToList();
+            names.Should().Contain("Ana Petrović");
+            names.Should().Contain("Anastasija Jovanović");
+            names.Should().NotContain("Marko Marković");
+        }
 
 
     }
