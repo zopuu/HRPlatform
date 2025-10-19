@@ -124,6 +124,39 @@ namespace HRPlatform.Tests {
             inDb.Phone.Should().Be("+38160123456");
             inDb.Email.Should().Be("ana.m@example.com");
         }
+        [Fact]
+        public async Task DeleteAsync_removes_candidate_and_skill_links() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new CandidatesService(db);
+
+            // seed two skills so we also verify cascade removal of join rows
+            db.Skills.AddRange(
+                new HRPlatform.Domain.Skill { Name = "C#" },
+                new HRPlatform.Domain.Skill { Name = "Java" }
+            );
+            await db.SaveChangesAsync();
+            var skillIds = await db.Skills.Select(s => s.Id).ToListAsync();
+
+            var created = await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Test User",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "+38160000000",
+                Email = "test.user@example.com",
+                SkillIds = skillIds
+            });
+
+            // sanity pre-checks
+            (await db.Candidates.AnyAsync(c => c.Id == created.Id)).Should().BeTrue();
+            (await db.CandidateSkills.CountAsync()).Should().Be(skillIds.Count);
+
+            // ACT
+            await sut.DeleteAsync(created.Id);
+
+            // ASSERT
+            (await db.Candidates.AnyAsync(c => c.Id == created.Id)).Should().BeFalse();
+            (await db.CandidateSkills.CountAsync()).Should().Be(0); // cascade cleared join rows
+        }
 
     }
 }
