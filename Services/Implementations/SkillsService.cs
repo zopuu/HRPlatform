@@ -16,8 +16,13 @@ namespace HRPlatform.Services.Implementations {
             page = page < 1 ? 1 : page;
             pageSize = pageSize is < 1 or > 100 ? 20 : pageSize;
             var s = _db.Skills.AsNoTracking();
-            if (!string.IsNullOrWhiteSpace(query))
-                s = s.Where(s => EF.Functions.ILike(s.Name, $"%{query.Trim()}%"));
+            if (!string.IsNullOrWhiteSpace(query)) {
+                var term = query.Trim();
+                if (_db.Database.IsNpgsql())
+                    s = s.Where(x => EF.Functions.ILike(x.Name, $"%{term}%"));
+                else
+                    s = s.Where(x => x.Name.ToLower().Contains(term.ToLower())); // InMemory fallback for tests
+            }
             var total = await s.CountAsync();
             var items = await s.OrderBy(s => s.Name)
                                .Skip((page - 1) * pageSize)

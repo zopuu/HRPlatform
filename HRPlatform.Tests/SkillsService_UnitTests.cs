@@ -1,14 +1,15 @@
-﻿using System;
+﻿using FluentAssertions;
+using HRPlatform.Common.Errors;
+using HRPlatform.Data;
+using HRPlatform.Domain;
+using HRPlatform.DTOs;
+using HRPlatform.Services.Implementations;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using HRPlatform.Common.Errors;
-using HRPlatform.Data;
-using HRPlatform.Domain;
-using HRPlatform.Services.Implementations;
-using Microsoft.EntityFrameworkCore;
-using FluentAssertions;
 using Xunit;
 
 namespace HRPlatform.Tests {
@@ -140,5 +141,22 @@ namespace HRPlatform.Tests {
             result.Total.Should().Be(3);
             result.Items.Should().HaveCount(3 <= 20 ? 3 : 20);
         }
+        [Fact]
+        public async Task Skills_GetAsync_filters_by_name_case_insensitive() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new SkillsService(db);
+
+            await sut.CreateAsync(new SkillCreateRequest { Name = "CSharp" });
+            await sut.CreateAsync(new SkillCreateRequest { Name = "Java" });
+
+            // ACT
+            var page = await sut.GetAsync("sharp", 1, 10);
+
+            // ASSERT
+            page.Total.Should().Be(1);
+            page.Items.Single().Name.Should().Be("CSharp");
+        }
+
     }
 }
