@@ -132,8 +132,8 @@ namespace HRPlatform.Tests {
 
             // seed two skills so we also verify cascade removal of join rows
             db.Skills.AddRange(
-                new HRPlatform.Domain.Skill { Name = "C#" },
-                new HRPlatform.Domain.Skill { Name = "Java" }
+                new Skill { Name = "C#" },
+                new Skill { Name = "Java" }
             );
             await db.SaveChangesAsync();
             var skillIds = await db.Skills.Select(s => s.Id).ToListAsync();
@@ -156,6 +156,50 @@ namespace HRPlatform.Tests {
             // ASSERT
             (await db.Candidates.AnyAsync(c => c.Id == created.Id)).Should().BeFalse();
             (await db.CandidateSkills.CountAsync()).Should().Be(0); // cascade cleared join rows
+        }
+        [Fact]
+        public async Task AssignSkillsAsync_adds_missing_skills_and_is_idempotent() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+
+            // seed skills
+            db.Skills.AddRange(
+                new HRPlatform.Domain.Skill { Name = "C#" },
+                new HRPlatform.Domain.Skill { Name = "Java" },
+                new HRPlatform.Domain.Skill { Name = "SQL" }
+            );
+            await db.SaveChangesAsync();
+            var ids = await db.Skills.OrderBy(s => s.Name).Select(s => s.Id).ToListAsync();
+
+            var sut = new CandidatesService(db);
+
+            // create candidate with no skills
+            var created = await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Assign Tester",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Email = "assign@test.com",
+                Phone = "+38160000000"
+            });
+
+            // ACT (first assign)
+            var afterFirst = await sut.AssignSkillsAsync(
+                created.Id,
+                new AssignSkillsRequest { SkillIds = new() { ids[0], ids[1] } });
+
+            // ASSERT (after first)
+            afterFirst.Skills.Select(s => s.Name).Should().BeEquivalentTo(new[] { "C#", "Java" }, opts => opts.WithoutStrictOrdering());
+
+            // ACT (assign again same + one new; should not duplicate existing)
+            var afterSecond = await sut.AssignSkillsAsync(
+                created.Id,
+                new AssignSkillsRequest { SkillIds = new() { ids[1], ids[2] } });
+
+            // ASSERT (idempotent; now should have 3 distinct)
+            afterSecond.Skills.Select(s => s.Name).Should().BeEquivalentTo(new[] { "C#", "Java", "SQL" }, opts => opts.WithoutStrictOrdering());
+
+            // DB assertions
+            var links = await db.CandidateSkills.Where(cs => cs.CandidateId == created.Id).ToListAsync();
+            links.Select(l => l.SkillId).Distinct().Should().HaveCount(3);
         }
 
     }
