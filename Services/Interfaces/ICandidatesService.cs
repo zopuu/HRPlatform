@@ -18,6 +18,6 @@ namespace HRPlatform.Services.Interfaces {
         Task DeleteAsync(int id);
 
         Task<CandidateDto> AssignSkillsAsync(int candidateId, AssignSkillsRequest request);
-        Task<CandidateDto> RemoveSkillAssync(int candidateId, int skillId);
+        Task<CandidateDto> RemoveSkillAsync(int candidateId, int skillId);
     }
 }

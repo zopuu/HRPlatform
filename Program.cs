@@ -16,6 +16,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<ISkillsService, SkillsService>();
+builder.Services.AddScoped<ICandidatesService, CandidatesService>();
 
 builder .Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -28,10 +29,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-
-app.MapControllers();
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 app.UseExceptionHandler(handlerApp => {
     handlerApp.Run(async context => {
@@ -55,6 +52,11 @@ app.UseExceptionHandler(handlerApp => {
         });
     });
 });
+
+app.MapControllers();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+
+
 
 
 app.Run();
