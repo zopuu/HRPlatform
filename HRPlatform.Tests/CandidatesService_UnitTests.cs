@@ -424,6 +424,39 @@ namespace HRPlatform.Tests {
             asc.Items.Select(x => x.FullName).Should().ContainInOrder("Oldest", "Middle", "Youngest");
             desc.Items.Select(x => x.FullName).Should().ContainInOrder("Youngest", "Middle", "Oldest");
         }
+        [Fact]
+        public async Task GetAsync_sorts_by_email_desc_and_phone_asc() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new CandidatesService(db);
+
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "A",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "3",
+                Email = "a@zzz.com"
+            });
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "B",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "1",
+                Email = "b@mmm.com"
+            });
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "C",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "2",
+                Email = "c@aaa.com"
+            });
+
+            // ACT
+            var byEmailDesc = await sut.GetAsync(null, null, "any", 1, 10, "email", "desc");
+            var byPhoneAsc = await sut.GetAsync(null, null, "any", 1, 10, "phone", "asc");
+
+            // ASSERT
+            byEmailDesc.Items.Select(x => x.Email).Should().ContainInOrder("c@aaa.com", "b@mmm.com", "a@zzz.com"); // desc by string sorts z..a, but our sample domains invert; check actual order
+            byPhoneAsc.Items.Select(x => x.Phone).Should().ContainInOrder("1", "2", "3");
+        }
 
 
     }
