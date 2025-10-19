@@ -88,6 +88,42 @@ namespace HRPlatform.Tests {
             dto.Skills.Select(s => s.Name).Should().BeEquivalentTo(new[] { "C#", "Java" });
             dto.Skills.Select(s => s.Name).Should().BeInAscendingOrder();
         }
+        [Fact]
+        public async Task UpdateAsync_updates_basic_fields() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new CandidatesService(db);
+
+            var created = await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Ana Petrović",
+                DateOfBirth = new DateOnly(1998, 5, 14),
+                Phone = "+38164111222",
+                Email = "ana.petrovic@example.com"
+            });
+
+            var req = new CandidateUpdateRequest {
+                FullName = "Ana M. Petrović",
+                DateOfBirth = new DateOnly(1997, 12, 1),
+                Phone = "+38160123456",
+                Email = "ana.m@example.com"
+            };
+
+            // ACT
+            var updated = await sut.UpdateAsync(created.Id, req);
+
+            // ASSERT
+            updated.Id.Should().Be(created.Id);
+            updated.FullName.Should().Be("Ana M. Petrović");
+            updated.DateOfBirth.Should().Be(new DateOnly(1997, 12, 1));
+            updated.Phone.Should().Be("+38160123456");
+            updated.Email.Should().Be("ana.m@example.com");
+
+            var inDb = await db.Candidates.FindAsync(created.Id);
+            inDb!.FullName.Should().Be("Ana M. Petrović");
+            inDb.DateOfBirth.Should().Be(new DateOnly(1997, 12, 1));
+            inDb.Phone.Should().Be("+38160123456");
+            inDb.Email.Should().Be("ana.m@example.com");
+        }
 
     }
 }
