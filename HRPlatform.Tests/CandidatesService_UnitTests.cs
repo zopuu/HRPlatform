@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using HRPlatform.Common.Errors;
 using HRPlatform.Data;
 using HRPlatform.Domain;
 using HRPlatform.DTOs;
@@ -201,6 +202,51 @@ namespace HRPlatform.Tests {
             var links = await db.CandidateSkills.Where(cs => cs.CandidateId == created.Id).ToListAsync();
             links.Select(l => l.SkillId).Distinct().Should().HaveCount(3);
         }
+        [Fact]
+        public async Task RemoveSkillAsync_removes_link_and_keeps_others() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+
+            // seed skills
+            db.Skills.AddRange(
+                new HRPlatform.Domain.Skill { Name = "C#" },
+                new HRPlatform.Domain.Skill { Name = "Java" }
+            );
+            await db.SaveChangesAsync();
+            var skillIds = await db.Skills.OrderBy(s => s.Name).Select(s => s.Id).ToListAsync();
+            var csharpId = skillIds[0];
+            var javaId = skillIds[1];
+
+            var sut = new CandidatesService(db);
+
+            // create candidate WITH both skills
+            var created = await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Remove Tester",
+                DateOfBirth = new DateOnly(1992, 2, 2),
+                Email = "remove@test.com",
+                Phone = "+38161111111",
+                SkillIds = new() { csharpId, javaId }
+            });
+
+            // sanity pre-check
+            (await db.CandidateSkills.CountAsync(cs => cs.CandidateId == created.Id)).Should().Be(2);
+
+            // ACT (remove one)
+            var after = await sut.RemoveSkillAsync(created.Id, csharpId);
+
+            // ASSERT
+            after.Skills.Select(s => s.Name).Should().BeEquivalentTo(new[] { "Java" });
+            (await db.CandidateSkills
+                .Where(cs => cs.CandidateId == created.Id)
+                .Select(cs => cs.SkillId)
+                .ToListAsync())
+                .Should().BeEquivalentTo(new[] { javaId });
+
+            // optional: removing a non-assigned skill should throw NotFound
+            var act = async () => await sut.RemoveSkillAsync(created.Id, csharpId);
+            await act.Should().ThrowAsync<NotFoundException>();
+        }
+
 
     }
 }
