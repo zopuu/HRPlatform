@@ -15,24 +15,14 @@ namespace HRPlatform.Controllers {
         public async Task<ActionResult<IEnumerable<CandidateDto>>> Get(
 
             [FromQuery] string? name,
-            [FromQuery] string? skills,
+            [FromQuery(Name = "skills")] List<int>? skillIds,
             [FromQuery] string match = "any",
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             [FromQuery] string sortBy = "name",
             [FromQuery] string dir = "asc"
             ) {
-            var skillIds = string.IsNullOrWhiteSpace(skills)
-                ? null
-                : skills.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                        .Select(s => int.TryParse(s, out var id) ? id : (int?)null)
-                                        .Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
-            // If 'skills' parameter is provided but no valid IDs parsed, return 400 Bad Request
-            if (!string.IsNullOrWhiteSpace(skills) && (skillIds == null || skillIds.Count == 0))
-                return BadRequest(new ProblemDetails {
-                    Title = "Invalid 'skills' value",
-                    Detail = "Use comma-separated skill IDs, e.g. ?skills=1,2,3"
-                });
+            
             var result = await _svc.GetAsync(name, skillIds, match, page, pageSize, sortBy, dir);
             Response.Headers["X-Total-Count"] = result.Total.ToString();
             return Ok(result.Items);
