@@ -56,7 +56,17 @@ app.UseExceptionHandler(handlerApp => {
 app.MapControllers();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
+using (var scope = app.Services.CreateScope()) {
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+    var logger = loggerFactory.CreateLogger("DbInit");
 
+    await db.Database.MigrateAsync(); // applies pending migrations
+
+    
+    await DbSeeder.SeedAsync(db, logger);
+    
+}
 
 
 app.Run();
