@@ -209,8 +209,8 @@ namespace HRPlatform.Tests {
 
             // seed skills
             db.Skills.AddRange(
-                new HRPlatform.Domain.Skill { Name = "C#" },
-                new HRPlatform.Domain.Skill { Name = "Java" }
+                new Skill { Name = "C#" },
+                new Skill { Name = "Java" }
             );
             await db.SaveChangesAsync();
             var skillIds = await db.Skills.OrderBy(s => s.Name).Select(s => s.Id).ToListAsync();
@@ -293,9 +293,9 @@ namespace HRPlatform.Tests {
 
             // seed skills
             db.Skills.AddRange(
-                new HRPlatform.Domain.Skill { Name = "C#" },
-                new HRPlatform.Domain.Skill { Name = "SQL" },
-                new HRPlatform.Domain.Skill { Name = "Java" }
+                new Skill { Name = "C#" },
+                new Skill { Name = "SQL" },
+                new Skill { Name = "Java" }
             );
             await db.SaveChangesAsync();
 
@@ -337,6 +337,59 @@ namespace HRPlatform.Tests {
 
             // ASSERT
             page.Items.Select(x => x.FullName).Should().BeEquivalentTo(new[] { "A", "B" });
+        }
+        [Fact]
+        public async Task GetAsync_filters_by_skills_match_all() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new CandidatesService(db);
+
+            // seed skills
+            db.Skills.AddRange(
+                new HRPlatform.Domain.Skill { Name = "C#" },
+                new HRPlatform.Domain.Skill { Name = "SQL" },
+                new HRPlatform.Domain.Skill { Name = "Java" }
+            );
+            await db.SaveChangesAsync();
+
+            var csharpId = await db.Skills.Where(s => s.Name == "C#").Select(s => s.Id).SingleAsync();
+            var sqlId = await db.Skills.Where(s => s.Name == "SQL").Select(s => s.Id).SingleAsync();
+            var javaId = await db.Skills.Where(s => s.Name == "Java").Select(s => s.Id).SingleAsync();
+
+            // A: C#
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "A",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "1",
+                Email = "a@ex.com",
+                SkillIds = new() { csharpId }
+            });
+            // B: Java + SQL (the only one that matches all {Java, SQL})
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "B",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "2",
+                Email = "b@ex.com",
+                SkillIds = new() { javaId, sqlId }
+            });
+            // C: none
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "C",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "3",
+                Email = "c@ex.com"
+            });
+
+            // ACT (all)
+            var page = await sut.GetAsync(
+                name: null,
+                skillIds: new() { javaId, sqlId },
+                match: "all",
+                page: 1, pageSize: 10,
+                sortBy: "name", dir: "asc");
+
+            // ASSERT
+            page.Items.Select(x => x.FullName).Should().BeEquivalentTo(new[] { "B" });
         }
 
 
