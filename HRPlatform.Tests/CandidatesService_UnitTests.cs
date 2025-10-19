@@ -391,6 +391,39 @@ namespace HRPlatform.Tests {
             // ASSERT
             page.Items.Select(x => x.FullName).Should().BeEquivalentTo(new[] { "B" });
         }
+        [Fact]
+        public async Task GetAsync_sorts_by_dob_both_directions() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new CandidatesService(db);
+
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Oldest",
+                DateOfBirth = new DateOnly(1980, 1, 1),
+                Phone = "1",
+                Email = "oldest@ex.com"
+            });
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Middle",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "2",
+                Email = "middle@ex.com"
+            });
+            await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "Youngest",
+                DateOfBirth = new DateOnly(2000, 1, 1),
+                Phone = "3",
+                Email = "youngest@ex.com"
+            });
+
+            // ACT
+            var asc = await sut.GetAsync(null, null, "any", 1, 10, "dob", "asc");
+            var desc = await sut.GetAsync(null, null, "any", 1, 10, "dob", "desc");
+
+            // ASSERT
+            asc.Items.Select(x => x.FullName).Should().ContainInOrder("Oldest", "Middle", "Youngest");
+            desc.Items.Select(x => x.FullName).Should().ContainInOrder("Youngest", "Middle", "Oldest");
+        }
 
 
     }
