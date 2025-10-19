@@ -285,6 +285,59 @@ namespace HRPlatform.Tests {
             names.Should().Contain("Anastasija Jovanović");
             names.Should().NotContain("Marko Marković");
         }
+        [Fact]
+        public async Task GetAsync_filters_by_skills_match_any() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+            var sut = new CandidatesService(db);
+
+            // seed skills
+            db.Skills.AddRange(
+                new HRPlatform.Domain.Skill { Name = "C#" },
+                new HRPlatform.Domain.Skill { Name = "SQL" },
+                new HRPlatform.Domain.Skill { Name = "Java" }
+            );
+            await db.SaveChangesAsync();
+
+            var csharpId = await db.Skills.Where(s => s.Name == "C#").Select(s => s.Id).SingleAsync();
+            var sqlId = await db.Skills.Where(s => s.Name == "SQL").Select(s => s.Id).SingleAsync();
+            var javaId = await db.Skills.Where(s => s.Name == "Java").Select(s => s.Id).SingleAsync();
+
+            // A: C#
+            var a = await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "A",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "1",
+                Email = "a@ex.com",
+                SkillIds = new() { csharpId }
+            });
+            // B: Java + SQL
+            var b = await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "B",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "2",
+                Email = "b@ex.com",
+                SkillIds = new() { javaId, sqlId }
+            });
+            // C: none
+            var c = await sut.CreateAsync(new CandidateCreateRequest {
+                FullName = "C",
+                DateOfBirth = new DateOnly(1990, 1, 1),
+                Phone = "3",
+                Email = "c@ex.com"
+            });
+
+            // ACT: any of {C#, SQL} => should return A and B
+            var page = await sut.GetAsync(
+                name: null,
+                skillIds: new() { csharpId, sqlId },
+                match: "any",
+                page: 1, pageSize: 10,
+                sortBy: "name", dir: "asc");
+
+            // ASSERT
+            page.Items.Select(x => x.FullName).Should().BeEquivalentTo(new[] { "A", "B" });
+        }
 
 
     }
