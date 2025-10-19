@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using HRPlatform.Data;
+using HRPlatform.Domain;
 using HRPlatform.DTOs;
 using HRPlatform.Services.Implementations;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,7 @@ namespace HRPlatform.Tests {
                 DateOfBirth = new DateOnly(1998, 5, 14),
                 Phone = "+38164111222",
                 Email = "ana.petrovic@example.com"
-                // SkillIds omitted on purpose
+                // no skills
             };
 
             // ACT
@@ -50,5 +51,43 @@ namespace HRPlatform.Tests {
             saved.FullName.Should().Be("Ana Petrović");
             saved.Email.Should().Be("ana.petrovic@example.com");
         }
+        [Fact]
+        public async Task GetByIdAsync_returns_candidate_with_assigned_skills() {
+            // ARRANGE
+            await using var db = CreateInMemoryDb();
+
+            // seed two skills
+            db.Skills.AddRange(
+                new Skill { Name = "C#" },
+                new Skill { Name = "Java" }
+            );
+            await db.SaveChangesAsync();
+
+            var csharpId = await db.Skills.Where(s => s.Name == "C#").Select(s => s.Id).SingleAsync();
+            var javaId = await db.Skills.Where(s => s.Name == "Java").Select(s => s.Id).SingleAsync();
+
+            var sut = new CandidatesService(db);
+
+            var create = new CandidateCreateRequest {
+                FullName = "Marko Marković",
+                DateOfBirth = new DateOnly(1995, 11, 2),
+                Phone = "+38162123456",
+                Email = "marko@example.com",
+                SkillIds = new() { csharpId, javaId }
+            };
+
+            var created = await sut.CreateAsync(create);
+
+            // ACT
+            var dto = await sut.GetByIdAsync(created.Id);
+
+            // ASSERT
+            dto.Id.Should().Be(created.Id);
+            dto.FullName.Should().Be("Marko Marković");
+            dto.Skills.Should().HaveCount(2);
+            dto.Skills.Select(s => s.Name).Should().BeEquivalentTo(new[] { "C#", "Java" });
+            dto.Skills.Select(s => s.Name).Should().BeInAscendingOrder();
+        }
+
     }
 }
